@@ -81,6 +81,8 @@
 	_IOW(SGX_MAGIC, 0x0c, struct sgx_range)
 #define SGX_IOC_ENCLAVE_PAGE_REMOVE \
 	_IOW(SGX_MAGIC, 0x0d, unsigned long)
+#define SGX_IOC_EPC_USAGE \
+	_IOR(SGX_MAGIC, 0x03, struct sgx_enclave_usage)
 
 /* SGX leaf instruction return values */
 #define SGX_SUCCESS			0
@@ -153,7 +155,6 @@ struct sgx_enclave_destroy {
 	__u64	addr;
 } __packed;
 
-
 /*
  *     SGX2.0 definitions
  */
@@ -170,5 +171,14 @@ struct sgx_modification_param {
 	struct sgx_range range;
 	unsigned long flags;
 };
+
+/**
+ * struct sgx_enclave_usage - parameter structure for the
+ *                            %SGX_IOC_EPC_USAGE ioctl
+ * @dummy: placeholder
+ */
+struct sgx_enclave_usage {
+    __u64 dummy;
+} __packed;
 
 #endif /* _UAPI_ASM_X86_SGX_H */
