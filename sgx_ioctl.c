@@ -862,6 +862,15 @@ out:
 	return ret;
 }
 
+static long sgx_ioc_enclave_usage( struct file *filep, unsigned int cmd,
+                                   unsigned long arg ) {
+    static __u64 count = 0;
+    int ret = 0;
+    struct sgx_enclave_usage *oinfo = (struct sgx_enclave_usage*)arg;
+    oinfo->dummy = ++count;
+    return ret;
+}
+
 /**
  * sgx_ioc_enclave_init - handler for SGX_IOC_ENCLAVE_INIT
  *
@@ -946,6 +955,9 @@ long sgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	case SGX_IOC_ENCLAVE_INIT:
 		handler = sgx_ioc_enclave_init;
 		break;
+	case SGX_IOC_EPC_USAGE:
+		 handler = sgx_ioc_enclave_usage;
+		 break;
 	default:
 		return -ENOIOCTLCMD;
 	}
