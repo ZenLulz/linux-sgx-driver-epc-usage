@@ -882,7 +882,13 @@ static long sgx_ioc_enclave_usage( struct file *filep, unsigned int cmd,
     static __u64 count = 0;
     int ret = 0;
     struct sgx_enclave_usage *oinfo = (struct sgx_enclave_usage*)arg;
-    oinfo->dummy = ++count;
+
+	struct sgx_tgid_ctx *ctx;
+	list_for_each_entry(ctx, &sgx_tgid_ctx_list, list)
+		oinfo->dummy1 = pid_nr(ctx->tgid);
+
+    oinfo->dummy2 = oinfo->dummy1;
+    ++count;
     return ret;
 }
 

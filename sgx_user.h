@@ -175,10 +175,11 @@ struct sgx_modification_param {
 /**
  * struct sgx_enclave_usage - parameter structure for the
  *                            %SGX_IOC_EPC_USAGE ioctl
- * @dummy: placeholder
+ * @dummyN: placeholder
  */
 struct sgx_enclave_usage {
-    __u64 dummy;
+    __u64 dummy1;
+    __u64 dummy2;
 } __packed;
 
 #endif /* _UAPI_ASM_X86_SGX_H */
