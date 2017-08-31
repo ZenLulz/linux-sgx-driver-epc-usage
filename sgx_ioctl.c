@@ -877,6 +877,7 @@ out:
 	return ret;
 }
 
+//==============================================================================
 static long sgx_ioc_enclave_usage( struct file *filep, unsigned int cmd,
                                    unsigned long arg ) {
     static __u64 count = 0;
@@ -884,13 +885,27 @@ static long sgx_ioc_enclave_usage( struct file *filep, unsigned int cmd,
     struct sgx_enclave_usage *oinfo = (struct sgx_enclave_usage*)arg;
 
 	struct sgx_tgid_ctx *ctx;
-	list_for_each_entry(ctx, &sgx_tgid_ctx_list, list)
-		oinfo->dummy1 = pid_nr(ctx->tgid);
+    struct sgx_encl *encl;
+    struct sgx_va_page *va_page;
 
-    oinfo->dummy2 = oinfo->dummy1;
+    oinfo->enclave_cnt = oinfo->epc_pages_cnt = oinfo->va_pages_cnt = 0;
+	list_for_each_entry(ctx, &sgx_tgid_ctx_list, list) {
+        if( pid_nr(ctx->tgid) == oinfo->sgx_pid ) {
+            list_for_each_entry(encl, &ctx->encl_list, encl_list) {
+                ++oinfo->enclave_cnt;
+                oinfo->epc_pages_cnt += encl->secs_child_cnt;
+                list_for_each_entry(va_page, &encl->va_pages, list) {
+                    ++oinfo->va_pages_cnt;
+                } 
+            }
+            break;
+        }
+    }
+
     ++count;
     return ret;
 }
+//==============================================================================
 
 /**
  * sgx_ioc_enclave_init - handler for SGX_IOC_ENCLAVE_INIT

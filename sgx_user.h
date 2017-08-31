@@ -175,11 +175,12 @@ struct sgx_modification_param {
 /**
  * struct sgx_enclave_usage - parameter structure for the
  *                            %SGX_IOC_EPC_USAGE ioctl
- * @dummyN: placeholder
  */
 struct sgx_enclave_usage {
-    __u64 dummy1;
-    __u64 dummy2;
+    __u64 sgx_pid; // in
+    __u64 enclave_cnt; // out
+    __u64 epc_pages_cnt; // out
+    __u64 va_pages_cnt; // out
 } __packed;
 
 #endif /* _UAPI_ASM_X86_SGX_H */
