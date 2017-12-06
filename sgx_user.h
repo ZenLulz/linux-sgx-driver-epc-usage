@@ -109,6 +109,7 @@
 #define SGX_INVALID_ISVSVN		64
 #define SGX_UNMASKED_EVENT		128
 #define SGX_INVALID_KEYNAME		256
+#define SGX_OVER_LIMITS         512
 
 /* IOCTL return values */
 #define SGX_POWER_LOST_ENCLAVE		0x40000000

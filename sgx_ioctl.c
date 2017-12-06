@@ -831,6 +831,23 @@ static long sgx_ioc_enclave_add_page(struct file *filep, unsigned int cmd,
 	return ret;
 }
 
+static int __sgx_limits_allowed(struct sgx_encl *encl) {
+    /*
+     * Only consider current enclave. Real implementation should take all
+     * enclaves with the same cgroup name into account.
+     *
+     * TODO Determine if the right metric is va_pages or epc_pages
+     */
+    unsigned int pages_cnt = encl->secs_child_cnt;
+    unsigned int pages_limit = 2000; // TODO get real number
+    pr_info("intel_sgx: Pages used: %u\n", pages_cnt);
+    
+    if (pages_cnt > pages_limit)
+        return SGX_OVER_LIMITS;
+    
+    return 0;
+}
+
 static int __sgx_encl_init(struct sgx_encl *encl, char *sigstruct,
 			   struct sgx_einittoken *einittoken)
 {
@@ -839,6 +856,13 @@ static int __sgx_encl_init(struct sgx_encl *encl, char *sigstruct,
 	void *secs_va = NULL;
 	int i;
 	int j;
+	
+	ret = __sgx_limits_allowed(encl);
+	if (ret) {
+    	pr_info("intel_sgx: Limits exceeded, INIT denied!");
+    	goto out;
+	}
+	
 
 	if (einittoken->valid && einittoken->isvsvnle < sgx_isvsvnle_min)
 		return SGX_LE_ROLLBACK;
