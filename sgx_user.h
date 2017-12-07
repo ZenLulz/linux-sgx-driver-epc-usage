@@ -83,6 +83,8 @@
 	_IOW(SGX_MAGIC, 0x0d, unsigned long)
 #define SGX_IOC_EPC_USAGE \
 	_IOR(SGX_MAGIC, 0x03, struct sgx_enclave_usage)
+#define SGX_IOC_ENCLAVE_LIMIT \
+	_IOW(SGX_MAGIC, 0x04, struct sgx_enclave_limit)
 
 /* SGX leaf instruction return values */
 #define SGX_SUCCESS			0
@@ -182,6 +184,11 @@ struct sgx_enclave_usage {
     __u64 enclave_cnt; // out
     __u64 epc_pages_cnt; // out
     __u64 va_pages_cnt; // out
+} __packed;
+
+struct sgx_enclave_limit {
+    char cgroup_path[200];
+    unsigned int max_pages;
 } __packed;
 
 #endif /* _UAPI_ASM_X86_SGX_H */

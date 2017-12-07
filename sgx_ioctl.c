@@ -83,6 +83,14 @@ struct sgx_add_page_req {
 	struct list_head list;
 };
 
+struct sgx_enclave_limit_internal {
+    char cgroup_path[200];
+    unsigned int max_pages;
+    struct list_head limits;
+};
+static struct list_head limits_list;
+static LIST_HEAD(limits_list);
+
 static u16 sgx_isvsvnle_min;
 atomic_t sgx_nr_pids = ATOMIC_INIT(0);
 
@@ -835,20 +843,36 @@ static int __sgx_limits_allowed(struct sgx_encl *encl) {
     /*
      * Only consider current enclave. Real implementation should take all
      * enclaves with the same cgroup name into account.
-     *
-     * TODO Determine if the right metric is va_pages or epc_pages
      */
     unsigned int pages_cnt = encl->secs_child_cnt;
     struct pid *tgid = encl->tgid_ctx->tgid;
     struct task_struct *task;
-    char buffer[200];
-    unsigned int pages_limit = 2000; // TODO get real number
+    struct sgx_enclave_limit_internal *limit;
+    char cgroup_path_encl[200];
+    char *last_slash;
+    unsigned int pages_limit = 0;
     pr_info("intel_sgx: Pages used: %u\n", pages_cnt);
     
     do_each_pid_task(tgid, PIDTYPE_PID, task) {
-        task_cgroup_path(task, buffer, 200);
-        pr_info("intel_sgx: Task path '%s'\n", buffer);
+        task_cgroup_path(task, cgroup_path_encl, 200);
+        pr_info("intel_sgx: Task path '%s'\n", cgroup_path_encl);
+        last_slash = strrchr(cgroup_path_encl, '/');
+        *last_slash = 0;
+        
+    	list_for_each_entry(limit, &limits_list, limits) {
+    	    if (strncmp(cgroup_path_encl, limit->cgroup_path, 200) == 0) {
+    	        pages_limit = limit->max_pages;
+    	        goto set_limit;
+    	    }
+    	}
+        
     } while_each_pid_task(tgid, PIDTYPE_PID, task);
+
+set_limit:
+
+    if (pages_limit == 0) {
+        pr_info("intel_sgx: Pages limit is 0!\n");
+    }
 
     if (pages_cnt > pages_limit)
         return SGX_OVER_LIMITS;
@@ -867,7 +891,7 @@ static int __sgx_encl_init(struct sgx_encl *encl, char *sigstruct,
 	
 	ret = __sgx_limits_allowed(encl);
 	if (ret) {
-    	pr_info("intel_sgx: Limits exceeded, INIT denied!");
+    	pr_info("intel_sgx: Limits exceeded, INIT denied!\n");
     	goto out;
 	}
 	
@@ -936,6 +960,18 @@ static long sgx_ioc_enclave_usage( struct file *filep, unsigned int cmd,
 
     ++count;
     return ret;
+}
+
+static long sgx_ioc_enclave_limit(struct file *filep, unsigned int cmd, unsigned long arg) {
+    struct sgx_enclave_limit *limit_input = (struct sgx_enclave_limit*) arg;
+    struct sgx_enclave_limit_internal *limit_internal = (struct sgx_enclave_limit_internal*) kmalloc(sizeof(struct sgx_enclave_limit_internal), GFP_KERNEL);
+    
+    strcpy(limit_internal->cgroup_path, limit_input->cgroup_path);
+    limit_internal->max_pages = limit_input->max_pages;
+
+    list_add(&limits_list, &(limit_internal->limits));
+
+    return 0;
 }
 //==============================================================================
 
@@ -1535,6 +1571,9 @@ long sgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	case SGX_IOC_EPC_USAGE:
 		handler = sgx_ioc_enclave_usage;
 		break;
+	case SGX_IOC_ENCLAVE_LIMIT:
+	    handler = sgx_ioc_enclave_limit;
+	    break;
 	default:
 		return -ENOIOCTLCMD;
 	}
