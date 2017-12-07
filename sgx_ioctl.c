@@ -839,9 +839,17 @@ static int __sgx_limits_allowed(struct sgx_encl *encl) {
      * TODO Determine if the right metric is va_pages or epc_pages
      */
     unsigned int pages_cnt = encl->secs_child_cnt;
+    struct pid *tgid = encl->tgid_ctx->tgid;
+    struct task_struct *task;
+    char buffer[200];
     unsigned int pages_limit = 2000; // TODO get real number
     pr_info("intel_sgx: Pages used: %u\n", pages_cnt);
     
+    do_each_pid_task(tgid, PIDTYPE_PID, task) {
+        task_cgroup_path(task, buffer, 200);
+        pr_info("intel_sgx: Task path '%s'\n", buffer);
+    } while_each_pid_task(tgid, PIDTYPE_PID, task);
+
     if (pages_cnt > pages_limit)
         return SGX_OVER_LIMITS;
     
