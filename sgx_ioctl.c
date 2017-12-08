@@ -88,7 +88,6 @@ struct sgx_enclave_limit_internal {
     unsigned int max_pages;
     struct list_head limits;
 };
-static struct list_head limits_list;
 static LIST_HEAD(limits_list);
 
 static u16 sgx_isvsvnle_min;
@@ -849,17 +848,21 @@ static int __sgx_limits_allowed(struct sgx_encl *encl) {
     struct task_struct *task;
     struct sgx_enclave_limit_internal *limit;
     char cgroup_path_encl[200];
-    char *last_slash;
     unsigned int pages_limit = 0;
-    pr_info("intel_sgx: Pages used: %u\n", pages_cnt);
+    char *last_slash;
+    pr_info("intel_sgx: Request for %u pages received.\n", pages_cnt);
+    cgroup_path_encl[0] = '\0';
     
     do_each_pid_task(tgid, PIDTYPE_PID, task) {
         task_cgroup_path(task, cgroup_path_encl, 200);
-        pr_info("intel_sgx: Task path '%s'\n", cgroup_path_encl);
         last_slash = strrchr(cgroup_path_encl, '/');
-        *last_slash = 0;
+        if (last_slash != NULL) {
+            *last_slash = '\0';
+        }
+        pr_info("intel_sgx: Loop for '%s'\n", cgroup_path_encl);
         
     	list_for_each_entry(limit, &limits_list, limits) {
+    	    pr_info("intel_sgx: Inner loop for '%s'\n", limit->cgroup_path);
     	    if (strncmp(cgroup_path_encl, limit->cgroup_path, 200) == 0) {
     	        pages_limit = limit->max_pages;
     	        goto set_limit;
@@ -870,9 +873,7 @@ static int __sgx_limits_allowed(struct sgx_encl *encl) {
 
 set_limit:
 
-    if (pages_limit == 0) {
-        pr_info("intel_sgx: Pages limit is 0!\n");
-    }
+    pr_info("intel_sgx: Limit for '%s' is %u.\n", cgroup_path_encl, pages_limit);
 
     if (pages_cnt > pages_limit)
         return SGX_OVER_LIMITS;
@@ -964,12 +965,23 @@ static long sgx_ioc_enclave_usage( struct file *filep, unsigned int cmd,
 
 static long sgx_ioc_enclave_limit(struct file *filep, unsigned int cmd, unsigned long arg) {
     struct sgx_enclave_limit *limit_input = (struct sgx_enclave_limit*) arg;
-    struct sgx_enclave_limit_internal *limit_internal = (struct sgx_enclave_limit_internal*) kmalloc(sizeof(struct sgx_enclave_limit_internal), GFP_KERNEL);
+    struct sgx_enclave_limit_internal *limit_internal = 0;
+    struct sgx_enclave_limit_internal *limit;
     
-    strcpy(limit_internal->cgroup_path, limit_input->cgroup_path);
+    list_for_each_entry(limit, &limits_list, limits) {
+	    if (strncmp(limit_input->cgroup_path, limit->cgroup_path, 200) == 0) {
+	        pr_info("intel_sgx: Limit for '%s' received more than once, ignoring.\n", limit_input->cgroup_path);
+	        return 0;
+	    }
+	}
+    
+    pr_info("intel_sgx: Adding limit for '%s': %u\n", limit_input->cgroup_path, limit_input->max_pages);
+    
+    limit_internal = (struct sgx_enclave_limit_internal*) kmalloc(sizeof(struct sgx_enclave_limit_internal), GFP_KERNEL);
+    strncpy(limit_internal->cgroup_path, limit_input->cgroup_path, 200);
     limit_internal->max_pages = limit_input->max_pages;
 
-    list_add(&limits_list, &(limit_internal->limits));
+    list_add(&(limit_internal->limits), &limits_list);
 
     return 0;
 }
