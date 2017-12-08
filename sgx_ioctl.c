@@ -850,7 +850,6 @@ static int __sgx_limits_allowed(struct sgx_encl *encl) {
     char cgroup_path_encl[200];
     unsigned int pages_limit = 0;
     char *last_slash;
-    pr_info("intel_sgx: Request for %u pages received.\n", pages_cnt);
     cgroup_path_encl[0] = '\0';
     
     do_each_pid_task(tgid, PIDTYPE_PID, task) {
@@ -859,10 +858,8 @@ static int __sgx_limits_allowed(struct sgx_encl *encl) {
         if (last_slash != NULL) {
             *last_slash = '\0';
         }
-        pr_info("intel_sgx: Loop for '%s'\n", cgroup_path_encl);
         
     	list_for_each_entry(limit, &limits_list, limits) {
-    	    pr_info("intel_sgx: Inner loop for '%s'\n", limit->cgroup_path);
     	    if (strncmp(cgroup_path_encl, limit->cgroup_path, 200) == 0) {
     	        pages_limit = limit->max_pages;
     	        goto set_limit;
@@ -873,7 +870,7 @@ static int __sgx_limits_allowed(struct sgx_encl *encl) {
 
 set_limit:
 
-    pr_info("intel_sgx: Limit for '%s' is %u.\n", cgroup_path_encl, pages_limit);
+    pr_info("intel_sgx: '%s' asks for %u pages. Limit is %u.\n", cgroup_path_encl, pages_cnt, pages_limit);
 
     if (pages_cnt > pages_limit)
         return SGX_OVER_LIMITS;
